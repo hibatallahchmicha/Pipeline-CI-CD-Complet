@@ -7,10 +7,10 @@ Ce dépôt couvre l'**Epic 1** du cahier des charges : préparation du dépôt d
 Rien n'étant encore en place côté AWS, commence par ceci :
 
 1. **Compte AWS**
-   - Crée un compte sur https://aws.amazon.com si tu n'en as pas (ou utilise un compte fourni par ton entreprise/école).
+   - Crée un compte sur https://aws.amazon.com 
    - Active le MFA sur le compte root, puis ne l'utilise plus au quotidien.
 
-2. **Utilisateur IAM dédié** (ne jamais utiliser le compte root pour travailler)
+2. **Utilisateur IAM dédié** 
    - Console AWS → IAM → Users → Create user (ex: `devops-stagiaire`).
    - Attache (temporairement, pour aller vite) la policy `AdministratorAccess`, ou mieux, uniquement :
      `AmazonEC2ContainerRegistryFullAccess`, `AWSCodeBuildAdminAccess`, `AmazonECS_FullAccess`,
