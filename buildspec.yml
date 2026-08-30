@@ -1,0 +1,77 @@
+# =============================================================================
+# US 2.1 / US 2.2 — Recette de build exécutée par AWS CodeBuild
+# =============================================================================
+# CodeBuild démarre un conteneur neuf, clone le dépôt, exécute les commandes
+# ci-dessous, récupère les fichiers déclarés dans `artifacts`, puis DÉTRUIT la
+# machine. Rien n'est conservé : c'est pourquoi l'image doit être poussée vers
+# ECR, seul stockage durable de la chaîne.
+#
+# Les quatre phases s'exécutent dans le MÊME shell : une variable définie en
+# `pre_build` reste disponible en `build` et `post_build`.
+#
+# Si une commande renvoie un code de sortie non nul, la phase échoue et le build
+# s'arrête. Les tests unitaires sont donc placés AVANT la construction de
+# l'image : un test rouge interrompt tout, sans consommer de temps de build.
+# =============================================================================
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.12
+    commands:
+      - echo "===== Installation des dependances ====="
+      - pip install --upgrade pip
+      - pip install -r app/requirements.txt
+
+  pre_build:
+    commands:
+      - echo "===== Tests unitaires (critere US 2.1) ====="
+      # `app/tests/test_app.py` ajoute lui-meme `app/` au sys.path : les tests
+      # sont donc lançables depuis la racine du depot.
+      - python -m pytest app/tests/ -v
+
+      - echo "===== Authentification aupres d'ECR (critere US 2.2) ====="
+      # Syntaxe AWS CLI v2. C'est la commande qui corrige le « Bug 2 » du
+      # cahier des charges : `docker login` classique echoue en environnement
+      # non interactif (« Cannot perform an interactive login from a non TTY
+      # device »). `--password-stdin` lit le jeton temporaire sur l'entree
+      # standard, sans TTY et sans laisser le mot de passe dans l'historique.
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+
+      - echo "===== Calcul du tag de l'image ====="
+      # CODEBUILD_RESOLVED_SOURCE_VERSION contient le SHA complet du commit
+      # construit. On en garde les 7 premiers caracteres : chaque image est
+      # ainsi tracable jusqu'au commit exact (critere US 2.2), et le tag est
+      # unique — indispensable, le repository ECR etant en mode IMMUTABLE.
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - IMAGE_TAG=${COMMIT_HASH:=latest}
+      - echo "Image cible = $REPOSITORY_URI:$IMAGE_TAG"
+
+  build:
+    commands:
+      - echo "===== Construction de l'image Docker ====="
+      # `app/` est le contexte de build : le Dockerfile et le code s'y trouvent.
+      # Necessite privileged_mode = true sur le projet CodeBuild, sans quoi
+      # aucun demon Docker n'est disponible dans le conteneur de build.
+      - docker build -t $REPOSITORY_URI:$IMAGE_TAG app/
+
+  post_build:
+    commands:
+      - echo "===== Poussee de l'image vers ECR ====="
+      - docker push $REPOSITORY_URI:$IMAGE_TAG
+
+      - echo "===== Generation de imagedefinitions.json ====="
+      # CE FICHIER EST LE TRAIT D'UNION AVEC LE SPRINT 4.
+      # L'action de deploiement ECS de CodePipeline le lit pour savoir quelle
+      # image affecter a quel conteneur. Le champ "name" doit correspondre
+      # EXACTEMENT au nom du conteneur de la Task Definition (var.container_name).
+      - printf '[{"name":"%s","imageUri":"%s"}]' "$CONTAINER_NAME" "$REPOSITORY_URI:$IMAGE_TAG" > imagedefinitions.json
+      - cat imagedefinitions.json
+
+# Fichiers transmis a l'etape suivante du pipeline (Sprint 4).
+# Tant que le projet est en mode NO_ARTIFACTS, cette section est ignoree :
+# le `cat` ci-dessus permet neanmoins de verifier le contenu dans les logs.
+artifacts:
+  files:
+    - imagedefinitions.json

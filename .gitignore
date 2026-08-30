@@ -8,8 +8,8 @@ __pycache__/
 .terraform/
 *.tfstate
 *.tfstate.*
-.terraform.lock.hcl
 *.tfvars
+!example.tfvars
 
 # Divers
 .DS_Store

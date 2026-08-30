@@ -28,7 +28,7 @@ Rien n'étant encore en place côté AWS, commence par ceci :
 
    aws configure
    # AWS Access Key ID / Secret Access Key : ceux créés à l'étape 2
-   # Default region : eu-west-1 (ou la région de ton choix)
+   # Default region : eu-west-3 (ou la région de ton choix)
    # Default output format : json
    ```
    Vérifie : `aws sts get-caller-identity` doit renvoyer ton compte.
@@ -64,13 +64,13 @@ Rien n'étant encore en place côté AWS, commence par ceci :
 
 ## 2. US 1.2 — Registre de conteneurs (ECR)
 
-Le module Terraform est dans `infra/ecr/`. Il crée :
+Le module Terraform est dans `infra/`. Il crée :
 - un repository ECR **privé**,
 - le **scan on push** activé,
 - une **lifecycle policy** qui ne garde que les 10 dernières images.
 
 ```bash
-cd infra/ecr
+cd infra
 terraform init
 terraform plan
 terraform apply   # tape "yes" pour confirmer
@@ -84,11 +84,14 @@ terraform output repository_url
 Teste manuellement le push (avant que CodeBuild ne le fasse automatiquement au Sprint 2) :
 ```bash
 cd ../../app
-aws ecr get-login-password --region eu-west-1 | docker login --username AWS --password-stdin <ID_COMPTE>.dkr.ecr.eu-west-1.amazonaws.com
+aws ecr get-login-password --region eu-west-3 | docker login --username AWS --password-stdin 984675940976.dkr.ecr.eu-west-3.amazonaws.com
 
 docker build -t demo-api .
-docker tag demo-api:latest <ID_COMPTE>.dkr.ecr.eu-west-1.amazonaws.com/smartovate/demo-api:latest
-docker push <ID_COMPTE>.dkr.ecr.eu-west-1.amazonaws.com/smartovate/demo-api:latest
+# Le repository est en IMMUTABLE : un tag ne peut jamais etre reecrit.
+# On utilise donc un tag unique (ici le SHA du commit) et jamais `latest`.
+TAG=$(git rev-parse --short HEAD)
+docker tag demo-api:latest 984675940976.dkr.ecr.eu-west-3.amazonaws.com/smartovate/demo-api:$TAG
+docker push 984675940976.dkr.ecr.eu-west-3.amazonaws.com/smartovate/demo-api:$TAG
 ```
 
 ✅ Critères US 1.2 couverts : repository privé créé, lifecycle policy (10 images), scan on push activé.
@@ -102,12 +105,31 @@ smartovate-pipeline/
 │   ├── requirements.txt
 │   ├── Dockerfile
 │   └── tests/test_app.py
-├── infra/
-│   └── ecr/              # Terraform : Epic 1 (ECR)
+├── infra/                # Terraform (state distant dans S3)
+│   ├── versions.tf       # providers + backend S3
+│   ├── variables.tf
+│   ├── main.tf           # Epic 1 : ECR
+│   ├── network.tf        # Epic 3 : VPC, subnets, security groups
+│   ├── alb.tf            # Epic 3 : ALB, target group, listener
+│   ├── ecs.tf            # Epic 3 : cluster, task definition, service
+│   └── outputs.tf
+├── docs/
+│   ├── RUNBOOK.md        # procedure pas a pas + captures a realiser
+│   └── captures/
 └── README.md
 ```
 
-## Prochaine étape (Sprint 2)
+## Profil AWS
 
-Une fois l'US 1.1 et l'US 1.2 validées, on enchaîne sur l'Epic 2 : rédaction du `buildspec.yml` et configuration
-du projet AWS CodeBuild pour automatiser build + tests + push vers ECR.
+Le poste de travail a plusieurs profils AWS. Terraform utilise explicitement le profil
+`smartovate` (variable `aws_profile` et bloc `backend`), il n'y a donc rien a exporter
+avant un `terraform apply`. Pour l'AWS CLI en revanche :
+
+```bash
+export AWS_PROFILE=smartovate   # PowerShell : $env:AWS_PROFILE = "smartovate"
+```
+
+## Suite du projet
+
+La procedure detaillee des Sprints 2 a 4, avec la liste des captures d'ecran a realiser
+pour le rapport, se trouve dans [docs/RUNBOOK.md](docs/RUNBOOK.md).
