@@ -59,7 +59,18 @@ phases:
   post_build:
     commands:
       - echo "===== Poussee de l'image vers ECR ====="
-      - docker push $REPOSITORY_URI:$IMAGE_TAG
+      # Le repository ECR est en mode IMMUTABLE : un tag existant ne peut jamais
+      # etre reecrit. Or relancer une execution du pipeline sur un commit deja
+      # construit (retry apres incident reseau, re-execution manuelle) tenterait
+      # de repousser le meme tag et echouerait avec
+      # ImageTagAlreadyExistsException. On rend donc l'etape idempotente : si
+      # l'image existe deja, elle est simplement reutilisee.
+      - |
+        if aws ecr describe-images --repository-name "$IMAGE_REPO_NAME" --image-ids imageTag="$IMAGE_TAG" > /dev/null 2>&1; then
+          echo "Image $IMAGE_TAG deja presente dans ECR : push ignore (tags IMMUTABLE)."
+        else
+          docker push "$REPOSITORY_URI:$IMAGE_TAG"
+        fi
 
       - echo "===== Generation de imagedefinitions.json ====="
       # CE FICHIER EST LE TRAIT D'UNION AVEC LE SPRINT 4.

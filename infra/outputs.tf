@@ -69,3 +69,30 @@ output "codebuild_role_arn" {
   description = "ARN du rôle IAM de CodeBuild"
   value       = aws_iam_role.codebuild.arn
 }
+
+# --- Pipeline et notifications (Sprint 4) ---
+
+output "codepipeline_name" {
+  description = "Nom du pipeline CI/CD"
+  value       = aws_codepipeline.main.name
+}
+
+output "codestar_connection_arn" {
+  description = "ARN de la connexion GitHub — à autoriser MANUELLEMENT dans la console"
+  value       = aws_codestarconnections_connection.github.arn
+}
+
+output "codestar_connection_status" {
+  description = "PENDING tant que la connexion GitHub n'est pas autorisee dans la console"
+  value       = aws_codestarconnections_connection.github.connection_status
+}
+
+output "sns_topic_arn" {
+  description = "ARN du topic SNS des notifications de pipeline"
+  value       = aws_sns_topic.pipeline.arn
+}
+
+output "artifacts_bucket" {
+  description = "Bucket S3 de transit des artefacts entre etapes"
+  value       = aws_s3_bucket.artifacts.bucket
+}

@@ -84,6 +84,29 @@ data "aws_iam_policy_document" "codebuild" {
     resources = ["*"]
   }
 
+  # --- Artefacts du pipeline (Sprint 4) ---
+  # En mode CODEPIPELINE, CodeBuild ne clone plus GitHub : il LIT l'artefact de
+  # source déposé par l'étape Source dans le bucket S3, et y ÉCRIT en retour
+  # l'artefact de sortie (imagedefinitions.json) destiné à l'étape Deploy.
+  # Sans ces droits, le build échoue en phase DOWNLOAD_SOURCE sur un
+  # AccessDenied s3:GetObject — alors que le même projet fonctionnait en
+  # autonome au Sprint 2, où S3 n'intervenait pas.
+  statement {
+    sid    = "S3PipelineArtifacts"
+    effect = "Allow"
+    actions = [
+      "s3:GetObject",
+      "s3:GetObjectVersion",
+      "s3:PutObject",
+      "s3:GetBucketAcl",
+      "s3:GetBucketLocation",
+    ]
+    resources = [
+      aws_s3_bucket.artifacts.arn,
+      "${aws_s3_bucket.artifacts.arn}/*",
+    ]
+  }
+
   # --- Push de l'image, limité à NOTRE repository ---
   statement {
     sid    = "ECRPushToProjectRepository"
@@ -96,6 +119,7 @@ data "aws_iam_policy_document" "codebuild" {
       "ecr:PutImage",                    # enregistrement du manifeste + tag
       "ecr:BatchGetImage",               # lecture (cache de couches)
       "ecr:GetDownloadUrlForLayer",
+      "ecr:DescribeImages", # test d'existence du tag (idempotence)
     ]
     resources = [aws_ecr_repository.app.arn]
   }
@@ -143,32 +167,40 @@ resource "aws_codebuild_project" "app" {
       name  = "CONTAINER_NAME"
       value = var.container_name
     }
+
+    # Nom court du repository (sans l'hote), attendu par `aws ecr describe-images`
+    # dans le test d'idempotence du push.
+    environment_variable {
+      name  = "IMAGE_REPO_NAME"
+      value = var.ecr_repository_name
+    }
   }
 
   # ---------------------------------------------------------------------------
-  # Source
+  # Source et artefacts
   # ---------------------------------------------------------------------------
-  # Le dépôt étant PUBLIC, CodeBuild le clone sans authentification : ni jeton
-  # personnel GitHub, ni CodeStar Connection ne sont nécessaires au Sprint 2.
+  # Au Sprint 2, le projet clonait directement le dépôt GitHub public et était
+  # déclenché à la main (`aws codebuild start-build`).
   #
-  # ⚠️ À MODIFIER AU SPRINT 4 : lorsque le projet sera piloté par CodePipeline,
-  # c'est le pipeline qui fournira le code source. Remplacer alors par :
-  #     source    { type = "CODEPIPELINE" }
-  #     artifacts { type = "CODEPIPELINE" }
-  # ---------------------------------------------------------------------------
+  # SPRINT 4 : c'est désormais CodePipeline qui fournit le code source (déjà
+  # cloné par l'étape Source) et qui récupère les artefacts produits.
+  #
+  # Conséquence : le projet ne peut plus être lancé seul via `start-build` —
+  # il n'a plus de dépôt configuré. Pour revenir temporairement au mode
+  # autonome du Sprint 2 (utile en cas de débogage), rétablir :
+  #     source    { type = "GITHUB"  location = var.github_repository_url
+  #                 git_clone_depth = 1  buildspec = "buildspec.yml" }
+  #     artifacts { type = "NO_ARTIFACTS" }
+  #     source_version = "main"
   source {
-    type            = "GITHUB"
-    location        = var.github_repository_url
-    git_clone_depth = 1
-    buildspec       = "buildspec.yml"
+    type      = "CODEPIPELINE"
+    buildspec = "buildspec.yml"
   }
 
-  source_version = "main"
-
-  # NO_ARTIFACTS : au Sprint 2 le build est déclenché à la main, aucun artefact
-  # n'est transmis. imagedefinitions.json reste vérifiable dans les logs.
+  # Les fichiers déclarés dans la section `artifacts` du buildspec
+  # (imagedefinitions.json) sont remontés vers le bucket S3 du pipeline.
   artifacts {
-    type = "NO_ARTIFACTS"
+    type = "CODEPIPELINE"
   }
 
   logs_config {

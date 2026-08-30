@@ -206,9 +206,12 @@ resource "aws_ecs_service" "app" {
   #   Terraform      → la FORME de l'infrastructure
   #   CodePipeline   → la VERSION de l'image qui tourne
   #
-  # lifecycle {
-  #   ignore_changes = [task_definition, desired_count]
-  # }
+  # ACTIVÉ AU SPRINT 4 : CodePipeline enregistre une nouvelle révision de Task
+  # Definition à chaque déploiement. Sans ce bloc, le `terraform plan` suivant
+  # voudrait revenir à la révision qu'il connaît et annulerait le déploiement.
+  lifecycle {
+    ignore_changes = [task_definition, desired_count]
+  }
   # -------------------------------------------------------------------------
 
   tags = {

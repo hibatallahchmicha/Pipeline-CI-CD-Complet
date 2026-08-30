@@ -129,13 +129,54 @@ variable "container_name" {
 }
 
 variable "github_repository_url" {
-  description = "URL HTTPS du dépôt GitHub cloné par CodeBuild (dépôt public : aucun jeton requis)"
+  description = <<-EOT
+    URL HTTPS du dépôt GitHub cloné par CodeBuild (dépôt public : aucun jeton requis).
+
+    On pointe sur le FORK et non sur le dépôt d'origine : le compte utilisé pour
+    le développement n'a pas les droits d'écriture sur SihamBouzagrar/... Le
+    travail est poussé sur le fork, puis réintégré en amont par pull request.
+    Le dépôt d'origine reste accessible via le remote git `upstream`.
+  EOT
   type        = string
-  default     = "https://github.com/SihamBouzagrar/Pipeline-CI-CD-Complet.git"
+  default     = "https://github.com/hibatallahchmicha/Pipeline-CI-CD-Complet.git"
 }
 
 variable "codebuild_compute_type" {
   description = "Taille de la machine de build. BUILD_GENERAL1_SMALL = 100 min/mois gratuites."
   type        = string
   default     = "BUILD_GENERAL1_SMALL"
+}
+
+# --- Pipeline et notifications (Sprint 4 / US 4.1, US 4.2) ---
+
+variable "github_owner" {
+  description = "Propriétaire du dépôt GitHub surveillé par CodePipeline"
+  type        = string
+  default     = "hibatallahchmicha"
+}
+
+variable "github_repository" {
+  description = "Nom du dépôt GitHub surveillé par CodePipeline"
+  type        = string
+  default     = "Pipeline-CI-CD-Complet"
+}
+
+variable "github_branch" {
+  description = "Branche dont chaque push déclenche le pipeline (critère US 4.1)"
+  type        = string
+  default     = "main"
+}
+
+variable "notification_email" {
+  description = <<-EOT
+    Adresse qui recevra les notifications SNS d'état du pipeline (US 4.2).
+
+    À définir dans `infra/terraform.tfvars`, fichier ignoré par git : l'adresse
+    n'est donc pas publiée dans le dépôt public. Exemple de contenu :
+        notification_email = "prenom.nom@example.com"
+
+    AWS envoie un mail de confirmation : tant que le lien n'est pas cliqué,
+    l'abonnement reste en état "PendingConfirmation" et aucune alerte n'arrive.
+  EOT
+  type        = string
 }

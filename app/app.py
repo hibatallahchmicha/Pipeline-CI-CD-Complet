@@ -11,7 +11,7 @@ APP_VERSION = os.environ.get("APP_VERSION", "dev")
 @app.route("/")
 def index():
     return jsonify(
-        message="Bienvenue sur l'API de démo Smartovate",
+       message="Bienvenue sur l'API de démo Smartovate — déployée par CodePipeline",
         version=APP_VERSION,
     )
 
