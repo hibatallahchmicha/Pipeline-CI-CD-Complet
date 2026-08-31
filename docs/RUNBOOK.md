@@ -1,21 +1,45 @@
 # Runbook — Sprints 2 à 4
 
-Procédure pas à pas pour terminer le pipeline CI/CD, avec les captures d'écran à
-réaliser pour le rapport de stage.
+Procédure pas à pas de mise en œuvre du pipeline CI/CD, et référentiel des
+preuves à intégrer au rapport de stage.
 
 > **Compte AWS** : `984675940976` · **Région** : `eu-west-3` (Paris) · **Profil CLI** : `smartovate`
 
 ---
 
-## Conventions de capture
+## 📸 Pour la rédaction du rapport : commencer ici
+
+Les captures d'écran sont **déjà réalisées, renommées et classées** dans
+`docs/captures/`. Elles sont numérotées dans l'ordre de lecture du rapport : un
+tri alphabétique du dossier donne directement le bon enchaînement.
+
+> ### 👉 [`docs/captures/README.md`](captures/README.md)
+>
+> **C'est le document à lire pour rédiger.** Pour chacune des 39 captures, il
+> précise :
+> - ce que l'image montre concrètement ;
+> - le critère du cahier des charges qu'elle démontre ;
+> - une **légende prête à recopier** sous l'image ;
+> - le cas échéant, l'explication technique à développer dans le texte.
+>
+> Il se termine par deux tableaux de synthèse : la correspondance
+> *critère d'acceptation → capture*, et la liste des six captures à conserver
+> en priorité si la place manque.
+
+Le présent runbook décrit, lui, **comment l'infrastructure a été construite** :
+commandes exécutées, choix techniques, incidents rencontrés et corrections
+apportées. Il sert de source pour les parties « démarche » et « difficultés
+rencontrées » du rapport.
+
+### Conventions retenues pour les captures
 
 | Règle | Pourquoi |
 |---|---|
-| Nommer les fichiers `SXX-NN-description.png` (ex. `S3-04-alb-actif.png`) | Les captures restent triées et référençables depuis le rapport |
-| Les déposer dans `docs/captures/` | Elles sont versionnées avec le code |
-| Toujours inclure le fil d'Ariane AWS et la région en haut à droite | Prouve *où* la ressource a été créée |
-| Masquer l'ID de compte si le rapport est diffusé hors entreprise | 984675940976 est une donnée sensible |
-| Pour les terminaux : capturer la commande **et** son résultat | Une sortie sans sa commande n'est pas une preuve |
+| Nommage `SX-NN-sujet.png` (ex. `S3-14-target-group-health-check.png`) | Tri alphabétique = ordre de lecture du rapport |
+| Dépôt dans `docs/captures/` | Les preuves sont versionnées avec le code qu'elles illustrent |
+| Fil d'Ariane AWS et région visibles | Prouve *où* la ressource a été créée — une capture en `us-east-1` documenterait le mauvais environnement |
+| Masquer l'ID de compte hors diffusion interne | `984675940976` figure sur plusieurs captures |
+| Pour les terminaux : la commande **et** son résultat | Une sortie sans sa commande n'est pas une preuve |
 
 ---
 
